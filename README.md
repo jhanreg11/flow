@@ -1,0 +1,1 @@
+- static positive charges are placed randomly
