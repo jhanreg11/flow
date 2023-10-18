@@ -1,6 +1,11 @@
-import shaders from './fullscreenQuad.wgsl?raw';
+import renderShaders from './fullscreenQuad.wgsl?raw';
+import computeShaders from './simulate.wgsl?raw';
 
 const canvas = document.querySelector("canvas");
+canvas.style.width = "100vw";
+canvas.style.height = "95vh";
+canvas.width = canvas.offsetWidth;
+canvas.height = canvas.offsetHeight;
 
 if (!navigator.gpu) {
   throw new Error("WebGPU not supported on this browser.");
@@ -24,7 +29,8 @@ const simulationParams = {
   delta_iter: .0004,
   magnitude: .1
 };
-const NUM_PARTICLES = 1000;
+
+const NUM_PARTICLES = 10000;
 const PARTICLE_BYTES = 
 2 * 4 + // position
 2 * 4 + // velocity
@@ -57,7 +63,7 @@ const renderPipeline = device.createRenderPipeline({
   layout: pipelineLayout,
   vertex: {
     module: device.createShaderModule({
-      code: shaders,
+      code: renderShaders,
     }),
     entryPoint: 'vs_main',
     buffers: [
@@ -91,7 +97,7 @@ const renderPipeline = device.createRenderPipeline({
   },
   fragment: {
     module: device.createShaderModule({
-      code: shaders,
+      code: renderShaders,
     }),
     entryPoint: 'fs_main',
     targets: [
@@ -148,10 +154,6 @@ const uniformBindGroup = device.createBindGroup({
 });
 
 
-//////////////////////////////////////////////////////////////////////////////
-// Quad vertex buffer
-//////////////////////////////////////////////////////////////////////////////
-// prettier-ignore
 const vertexData = new Float32Array([
   //   X,    Y,
     -0.8, -0.8, // Triangle 1 (Blue)
@@ -168,9 +170,6 @@ const quadVertexBuffer = device.createBuffer({
   usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
 });
 device.queue.writeBuffer(quadVertexBuffer, 0, vertexData);
-////////////////////////
-// simulation
-////////////////////////
 
 const simulationUBOBufferSize =
   1 * 4 + // delta_iter 
@@ -191,7 +190,6 @@ device.queue.writeBuffer(
   ])
 );
 
-// DO I need to explictly writeBuffer vals if 0 is init value?
 const iterBuffer = device.createBuffer({
   size: 4,
   usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
@@ -202,7 +200,7 @@ const computePipeline = device.createComputePipeline({
   layout: 'auto',
   compute: {
     module: device.createShaderModule({
-      code: shaders,
+      code: computeShaders,
     }),
     entryPoint: 'simulate_step',
   },
@@ -233,7 +231,11 @@ const computeBindGroup = device.createBindGroup({
   ],
 });
 
+function writeFps(curr, last) {
+  document.getElementById('FPS').innerHTML = Math.round(1 / (curr - last) * 1000);
+}
 
+let last = performance.now();
 function frame() {
   const commandEncoder = device.createCommandEncoder();
   {
@@ -247,7 +249,7 @@ function frame() {
     const passEncoder = commandEncoder.beginRenderPass({
       colorAttachments: [
         {
-          view: context.getCurrentTexture().createView(), // Assigned later
+          view: context.getCurrentTexture().createView(), 
           loadOp: 'clear',
           clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
           storeOp: 'store',
@@ -263,7 +265,9 @@ function frame() {
   }
 
   device.queue.submit([commandEncoder.finish()]);
-
+  const curr = performance.now();
+  writeFps(curr, last);
+  last = curr;
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
