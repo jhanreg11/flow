@@ -1,9 +1,11 @@
-import renderShaders from './fullscreenQuad.wgsl?raw';
-import computeShaders from './simulate.wgsl?raw';
+const renderRes = await fetch('./fullscreenQuad.wgsl');
+const renderShaders = await renderRes.text();
+const simRes = await fetch('./simulate.wgsl');
+const computeShaders = await simRes.text();
 
 const canvas = document.querySelector("canvas");
 canvas.style.width = "100vw";
-canvas.style.height = "95vh";
+canvas.style.height = "100vh";
 canvas.width = canvas.offsetWidth;
 canvas.height = canvas.offsetHeight;
 
@@ -30,7 +32,7 @@ const simulationParams = {
   magnitude: .1
 };
 
-const NUM_PARTICLES = 10000;
+const NUM_PARTICLES = 5000;
 const PARTICLE_BYTES = 
 2 * 4 + // position
 2 * 4 + // velocity
